@@ -1,70 +1,133 @@
-#Kaggle - Titanic Dataset Competition
+# Kaggle - Titanic Dataset Competition
 
-#Introduction: This project will aim to predict the likelihood of survival of an individual travelling on the Titanic. To do so, we will utilise a range of features including their Class Ticket Status, their Name and family members aboard and age among others.
+# Imports
 
-
-#To begin, we first want to prepare all module imports which may be utilised in the project.
-
-import numpy as np
 import pandas as pd
 
-from sklearn.linear_model import LogisticRegression
+from pathlib import Path
 
-#In this case, the datafiles we are using are already broken up into train and test files. As such, we can simply load them directly using Pandas.
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.model_selection import train_test_split
 
-df_train = pd.read_csv('train.csv')
-df_test = pd.read_csv('test.csv')
+from xgboost import XGBClassifier
 
-#To get an idea about what the data contains, we can view the first 5 rows of the data. For now, we will focus on the df_train file as this contains the data will be using the develop our predictive model with.
+# Set Path
 
-df_train.head()
+path = Path('C:/Users/hbinn/Documents/Projects/kaggle/titanic/')
 
-#Here we can view the columns within the dataset, alongside some examples of how the data appears. In the "Cabin" column, on lines 0, 2 and 4 we can see "NaN", which means 'not a number'. This suggests that the full dataset has some missing values.
+# Load Data
 
-#Another simple way to get some insight into the dataset is to use the 'describe' method.
+df_train = pd.read_csv(path/'train.csv')
+df_test = pd.read_csv(path/'test.csv')
 
-df_train.describe()
-
-#We can see that this method results in fewer columns, as it is only designed to handle numerical values, and categorical values are omitted.
-
-# Lets explore the data a little further to understand each variable better.
+# Data Analysis & Exploration **TBA**
 
 tot_surv_rate = df_train['Survived'].mean()
 
-#This is the total surrival rate.
+print("The total survival rate of the Titanic sample is %.4f" %tot_surv_rate)
 
-print("The total survival rate of the Titanic sample is %.2f" %tot_surv_rate)
+# Feature Engineering and Transfomation
 
+    # Creating Dummy variables for Categorical Data
 train_sex_dummies = pd.get_dummies(df_train['Sex'])
-#train_cab_dummies = pd.get_dummies(df_train['Cabin'])
 train_emb_dummies = pd.get_dummies(df_train['Embarked'])
 
-df_train = pd.concat([df_train, train_sex_dummies, train_emb_dummies],axis = 1)
+    # Data Imputation for Missing Variables **TBA**
 
-df_train = df_train.drop(['Sex','Cabin','Embarked','Name','PassengerId','Ticket'], axis = 1)
-df_train = df_train.dropna(axis = 0)
+X = pd.concat([df_train, train_sex_dummies, train_emb_dummies], axis=1)
 
-X_train = df_train.drop(columns='Survived')
-y_train = df_train['Survived']
+    # Data Scaling **TBA**
 
-clf = LogisticRegression(random_state = 0)
+    # Removing unused variables and finalising data before fitting to model.
 
-model = clf.fit(X,y)
+X = X.drop(['Sex','Cabin','Embarked','Name','PassengerId',
+                          'Ticket'], axis=1)
 
-#Prepare the Test data in the same manner.
+X = X.dropna()
+y = X['Survived']
+X = X.drop(columns ='Survived')
+
+# Create Train & Validation Data Split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.25)
+
+# Prepare and fit the models we will assess.
+    
+    # Linear Regression
+lin_reg = LinearRegression()
+lin_model = lin_reg.fit(X_train, y_train)
+    
+    # Logistic Regression
+
+clf = LogisticRegression(max_iter=1000)
+clf_model = clf.fit(X_train,y_train)
+
+    # XGBoost
+xgb = XGBClassifier()
+xgb_model = xgb.fit(X_train, y_train)
+
+
+# Display Model Performance Metrics
+
+    # Linear Regression
+
+print("Linear Regression Model")
+lin_score = lin_model.score(X_train, y_train)
+lin_val_score = lin_model.score(X_val, y_val)
+print("Train - Mean Accuracy: {0:.4f}".format(lin_score))
+print("Validation - Mean Accuracy: {0:.4f}".format(lin_val_score))
+
+    # Logistic Regression
+
+print("Logistic Regression Model")
+clf_score = clf_model.score(X_train, y_train)
+clf_val_score = clf_model.score(X_val, y_val)
+print("Train - Mean Accuracy: {0:.4f}".format(clf_score))
+print("Validation - Mean Accuracy: {0:.4f}".format(clf_val_score))
+
+    # XGBoost
+
+print("XGBoost Classification Model")
+xgb_score = xgb_model.score(X_train, y_train)
+xgb_val_score = xgb_model.score(X_val, y_val)
+print("Train - Mean Accuracy: {0:.4f}".format(xgb_score))
+print("Validation - Mean Accuracy: {0:.4f}".format(xgb_val_score))
+
+#Prepare the test data in the same manner as the train data.
+
 test_sex_dummies = pd.get_dummies(df_test['Sex'])
-#test_cab_dummies = pd.get_dummies(df_test['Cabin'])
 test_emb_dummies = pd.get_dummies(df_test['Embarked'])
 
-df_test = pd.concat([df_test, test_sex_dummies, test_emb_dummies],axis = 1)
+X_test = pd.concat([df_test, test_sex_dummies, test_emb_dummies],axis = 1)
+X_test = X_test.drop(['Sex','Cabin','Embarked','Name',
+                          'Ticket'], axis=1)
 
-df_test = df_test.drop(['Sex','Cabin','Embarked','Name','PassengerId','Ticket'], axis = 1)
-df_test = df_test.dropna(axis = 0)
+X_test = X_test.dropna()
 
-X_test = df_train.drop(columns='Survived')
+    # Extract ID's for output
 
-y_pred = clf.predict(X_test)
+X_test_id = X_test['PassengerId']
+X_test = X_test.drop(columns='PassengerId')
 
-score =clf.score(X_train, y_train)
+# Create predictions for X_test data from the models earlier.
 
-print(y_train)
+lin_y_pred = lin_model.predict(X_test)
+log_y_pred = clf_model.predict(X_test)
+xgb_y_pred = xgb_model.predict(X_test)
+
+# See if the predicted survival rates are in line with the training data.
+
+    # Linear Regression
+print("Linear Regression Model")
+print("Test - predicted survival rate: {0:.4f}".format(lin_y_pred.mean()))
+
+print("Logistic Regression Model")
+print("Test - predicted survival rate: {0:.4f}".format(log_y_pred.mean()))
+
+print("XGBoost Model")
+print("Test - predicted survival rate: {0:.4f}".format(xgb_y_pred.mean()))
+
+# Output our chosen prediction array alongside passenger ID's
+
+out = pd.DataFrame(X_test_id, xgb_y_pred, columns =['PassengerId','Survived'])
+
+
